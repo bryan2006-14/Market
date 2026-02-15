@@ -55,7 +55,8 @@ export default function FavoritosPage() {
       }
 
       if (!userData) {
-        window.location.href = "/auth/login";
+        // Guardar la URL actual para redirigir después del login
+        window.location.href = "/auth/login?redirect=/favoritos";
         return;
       }
 

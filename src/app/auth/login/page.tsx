@@ -1,20 +1,33 @@
 "use client";
 
 import { supabase } from "@/app/lib/supabaseClient";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState("/dashboard");
+
+  useEffect(() => {
+    // Obtener la URL de redirección de los parámetros
+    const redirect = searchParams?.get("redirect");
+    if (redirect) {
+      setRedirectUrl(redirect);
+    }
+  }, [searchParams]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
+    setSuccess(false);
 
     try {
       // Verificar que Supabase esté configurado
@@ -56,7 +69,12 @@ export default function LoginPage() {
 
       if (data?.user) {
         console.log("Login exitoso:", data.user.email);
-        window.location.href = "/dashboard";
+        console.log("Redirigiendo a:", redirectUrl);
+        setSuccess(true);
+        // Mostrar mensaje de éxito antes de redirigir
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 800);
       } else {
         setError("Error: No se recibió información del usuario.");
         setLoading(false);
@@ -90,8 +108,36 @@ export default function LoginPage() {
             Iniciar sesión
           </h2>
 
+          {/* Mensaje si viene de otra página */}
+          {redirectUrl !== "/dashboard" && !success && !error && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-700 text-sm flex items-start gap-2">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Debes iniciar sesión para continuar</span>
+              </p>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {success && (
+            <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-emerald-800 font-semibold text-sm">¡Inicio de sesión exitoso!</p>
+                  <p className="text-emerald-700 text-xs mt-1">Redirigiendo...</p>
+                  <p className="text-emerald-600 text-xs mt-1">⏳ Esto puede tardar unos segundos en hosting gratuito</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Error Message */}
-          {error && (
+          {error && !success && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-600 text-sm flex items-start gap-2">
                 <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,6 +161,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -132,11 +179,13 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                disabled={loading}
               >
                 {showPassword ? (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,7 +220,7 @@ export default function LoginPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Iniciando sesión...
+                {success ? "Cargando..." : "Verificando..."}
               </>
             ) : (
               <>
@@ -182,6 +231,19 @@ export default function LoginPage() {
               </>
             )}
           </button>
+
+          {/* Loading message for slow hosting */}
+          {loading && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-700 text-xs text-center flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>El hosting gratuito puede tardar unos segundos...</span>
+              </p>
+            </div>
+          )}
 
           {/* Divider */}
           <div className="relative my-6">
@@ -197,7 +259,7 @@ export default function LoginPage() {
           <p className="text-center text-gray-600">
             ¿No tienes cuenta?{" "}
             <Link
-              href="/auth/register"
+              href={`/auth/register${redirectUrl !== "/dashboard" ? `?redirect=${redirectUrl}` : ""}`}
               className="text-emerald-600 font-semibold hover:text-emerald-700 hover:underline"
             >
               Crear cuenta gratis
