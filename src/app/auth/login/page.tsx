@@ -16,18 +16,56 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      // Verificar que Supabase esté configurado
+      if (!supabase) {
+        setError("Error de configuración: Supabase no está inicializado. Verifica las variables de entorno.");
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
-      setError(error.message);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error("Error de Supabase:", error);
+        
+        // Traducir errores comunes al español
+        let errorMessage = error.message;
+        
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Credenciales incorrectas. Verifica tu correo y contraseña.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Debes confirmar tu correo electrónico antes de iniciar sesión.";
+        } else if (error.message.includes("Invalid email")) {
+          errorMessage = "El formato del correo electrónico no es válido.";
+        } else if (error.message.includes("network") || error.message.includes("fetch")) {
+          errorMessage = "Error de conexión con Supabase. Verifica que las variables de entorno estén configuradas correctamente en Render.";
+        } else if (error.message.includes("URL")) {
+          errorMessage = "URL de Supabase no configurada. Verifica NEXT_PUBLIC_SUPABASE_URL en Render.";
+        } else if (error.message.includes("API key")) {
+          errorMessage = "API Key de Supabase no configurada. Verifica NEXT_PUBLIC_SUPABASE_ANON_KEY en Render.";
+        }
+        
+        setError(errorMessage);
+        setLoading(false);
+        return;
+      }
+
+      if (data?.user) {
+        console.log("Login exitoso:", data.user.email);
+        window.location.href = "/dashboard";
+      } else {
+        setError("Error: No se recibió información del usuario.");
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("Error inesperado en login:", err);
+      setError("Error inesperado al iniciar sesión. Verifica la configuración de Supabase en Render.");
       setLoading(false);
-      return;
     }
-
-    window.location.href = "/dashboard";
   }
 
   return (
@@ -55,11 +93,11 @@ export default function LoginPage() {
           {/* Error Message */}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <p className="text-red-600 text-sm flex items-start gap-2">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                {error}
+                <span>{error}</span>
               </p>
             </div>
           )}

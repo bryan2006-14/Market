@@ -32,22 +32,64 @@ export default function RegisterPage() {
 
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    try {
+      // Verificar que Supabase esté configurado
+      if (!supabase) {
+        setError("Error de configuración: Supabase no está inicializado. Verifica las variables de entorno.");
+        setLoading(false);
+        return;
+      }
 
-    setLoading(false);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        console.error("Error de Supabase:", error);
+        
+        // Traducir errores comunes al español
+        let errorMessage = error.message;
+        
+        if (error.message.includes("User already registered")) {
+          errorMessage = "Este correo electrónico ya está registrado. Intenta iniciar sesión.";
+        } else if (error.message.includes("Invalid email")) {
+          errorMessage = "El formato del correo electrónico no es válido.";
+        } else if (error.message.includes("Password should be at least")) {
+          errorMessage = "La contraseña debe tener al menos 6 caracteres.";
+        } else if (error.message.includes("network") || error.message.includes("fetch")) {
+          errorMessage = "Error de conexión con Supabase. Verifica que las variables de entorno estén configuradas correctamente en Render.";
+        } else if (error.message.includes("URL")) {
+          errorMessage = "URL de Supabase no configurada. Verifica NEXT_PUBLIC_SUPABASE_URL en Render.";
+        } else if (error.message.includes("API key")) {
+          errorMessage = "API Key de Supabase no configurada. Verifica NEXT_PUBLIC_SUPABASE_ANON_KEY en Render.";
+        } else if (error.message.includes("Unable to validate email address")) {
+          errorMessage = "No se puede validar el correo electrónico. Verifica que sea correcto.";
+        } else if (error.message.includes("Signups not allowed")) {
+          errorMessage = "Los registros están deshabilitados. Contacta al administrador.";
+        }
+        
+        setError(errorMessage);
+        setLoading(false);
+        return;
+      }
+
+      if (data?.user) {
+        console.log("Registro exitoso:", data.user.email);
+        setSuccess("¡Cuenta creada exitosamente! Revisa tu correo para confirmar tu cuenta.");
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+      } else {
+        setError("Error: No se recibió información del usuario.");
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error("Error inesperado en registro:", err);
+      setError("Error inesperado al crear la cuenta. Verifica la configuración de Supabase en Render.");
+      setLoading(false);
     }
-
-    setSuccess("¡Cuenta creada exitosamente! Revisa tu correo para confirmar tu cuenta.");
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
   }
 
   return (
@@ -78,11 +120,11 @@ export default function RegisterPage() {
           {/* Error Message */}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <p className="text-red-600 text-sm flex items-start gap-2">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                {error}
+                <span>{error}</span>
               </p>
             </div>
           )}
@@ -90,11 +132,11 @@ export default function RegisterPage() {
           {/* Success Message */}
           {success && (
             <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-600 text-sm flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <p className="text-green-600 text-sm flex items-start gap-2">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                {success}
+                <span>{success}</span>
               </p>
             </div>
           )}
