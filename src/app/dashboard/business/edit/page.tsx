@@ -1,23 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/app/lib/supabaseBrowser";
 import Link from "next/link";
 
-export default function CreateBusinessPage() {
+export default function EditBusinessPage() {
   const supabase = createClient();
 
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [logo, setLogo] = useState<File | null>(null);
+  const [logoActual, setLogoActual] = useState<string>("");
+  const [nuevoLogo, setNuevoLogo] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [negocioId, setNegocioId] = useState<string>("");
+
+  useEffect(() => {
+    loadNegocio();
+  }, []);
+
+  async function loadNegocio() {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      window.location.href = "/auth/login";
+      return;
+    }
+
+    const { data: negocio, error } = await supabase
+      .from("negocios")
+      .select("*")
+      .eq("usuario_id", user.id)
+      .single();
+
+    if (error || !negocio) {
+      alert("No se encontró tu negocio");
+      window.location.href = "/dashboard";
+      return;
+    }
+
+    setNegocioId(negocio.id);
+    setNombre(negocio.nombre);
+    setDescripcion(negocio.descripcion || "");
+    setWhatsapp(negocio.whatsapp || "");
+    setLogoActual(negocio.logo_url || "");
+    setPreviewUrl(negocio.logo_url || "");
+    setLoading(false);
+  }
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setLogo(file);
+      setNuevoLogo(file);
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     }
@@ -54,72 +90,75 @@ export default function CreateBusinessPage() {
     setUploading(true);
 
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        alert("Debes iniciar sesión para crear un negocio");
-        setUploading(false);
-        return;
-      }
+      let logo_url = logoActual;
 
-      const { data: negocioExistente } = await supabase
-        .from("negocios")
-        .select("id")
-        .eq("usuario_id", user.id)
-        .single();
-
-      if (negocioExistente) {
-        alert("Ya tienes un negocio creado");
-        window.location.href = "/dashboard";
-        return;
-      }
-
-      let logo_url = null;
-      if (logo) {
-        logo_url = await uploadLogo(logo);
-        if (!logo_url) {
-          alert("Error al subir el logo");
-          setUploading(false);
-          return;
+      if (nuevoLogo) {
+        const nuevaUrl = await uploadLogo(nuevoLogo);
+        if (nuevaUrl) {
+          logo_url = nuevaUrl;
         }
       }
 
-      const { error } = await supabase.from("negocios").insert({
-        nombre,
-        descripcion: descripcion || null,
-        whatsapp: whatsapp || null,
-        logo_url,
-        usuario_id: user.id,
-      });
+      const { error } = await supabase
+        .from("negocios")
+        .update({
+          nombre,
+          descripcion: descripcion || null,
+          whatsapp: whatsapp || null,
+          logo_url,
+        })
+        .eq("id", negocioId);
 
       if (error) {
         console.error(error);
-        alert("Error al crear negocio: " + error.message);
+        alert("Error al actualizar negocio: " + error.message);
         setUploading(false);
         return;
       }
 
-      alert("✅ ¡Negocio creado exitosamente!");
-      window.location.href = "/dashboard/welcome";
+      alert("✅ ¡Negocio actualizado exitosamente!");
+      window.location.href = "/dashboard";
     } catch (error) {
       console.error("Error general:", error);
-      alert("Error inesperado al crear negocio");
+      alert("Error inesperado al actualizar negocio");
       setUploading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando negocio...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50 py-12 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-block p-3 bg-emerald-600 rounded-full mb-4">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        <div className="mb-8">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center text-emerald-600 hover:text-emerald-700 mb-4 font-medium"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
+            Volver al Dashboard
+          </Link>
+          <div className="text-center">
+            <div className="inline-block p-3 bg-teal-600 rounded-full mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Editar Negocio</h1>
+            <p className="text-gray-600">Actualiza la información de tu emprendimiento</p>
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Crea tu Negocio</h1>
-          <p className="text-gray-600">Configura la información de tu emprendimiento</p>
         </div>
 
         {/* Formulario */}
@@ -129,7 +168,7 @@ export default function CreateBusinessPage() {
           <div>
             <label className="block mb-3 font-semibold text-gray-800">Logo del negocio</label>
             <div className="flex flex-col sm:flex-row items-start gap-6">
-              <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center bg-gray-50 overflow-hidden hover:border-emerald-400 transition">
+              <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center bg-gray-50 overflow-hidden hover:border-teal-400 transition">
                 {previewUrl ? (
                   <img 
                     src={previewUrl} 
@@ -146,7 +185,7 @@ export default function CreateBusinessPage() {
               </div>
 
               <div className="flex-1">
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-emerald-400 transition">
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-teal-400 transition">
                   <input
                     type="file"
                     accept="image/*"
@@ -155,12 +194,22 @@ export default function CreateBusinessPage() {
                       file:mr-4 file:py-2 file:px-4
                       file:rounded-full file:border-0
                       file:text-sm file:font-semibold
-                      file:bg-emerald-50 file:text-emerald-700
-                      hover:file:bg-emerald-100 cursor-pointer"
+                      file:bg-teal-50 file:text-teal-700
+                      hover:file:bg-teal-100 cursor-pointer"
                   />
                   <p className="text-xs text-gray-500 mt-3">
                     📸 PNG o JPG (recomendado: cuadrado, máx. 2MB)
                   </p>
+                  {logoActual && !nuevoLogo && (
+                    <p className="text-xs text-teal-600 mt-2">
+                      ✓ Usando logo actual
+                    </p>
+                  )}
+                  {nuevoLogo && (
+                    <p className="text-xs text-teal-600 mt-2">
+                      ✓ Nuevo logo seleccionado
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -178,7 +227,7 @@ export default function CreateBusinessPage() {
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              className="border border-gray-300 px-4 py-3 w-full rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+              className="border border-gray-300 px-4 py-3 w-full rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition"
               placeholder="Ej: Tienda de Ropa Bella"
               required
             />
@@ -191,7 +240,7 @@ export default function CreateBusinessPage() {
               id="descripcion"
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
-              className="border border-gray-300 px-4 py-3 w-full rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition resize-none"
+              className="border border-gray-300 px-4 py-3 w-full rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition resize-none"
               rows={4}
               placeholder="Cuenta a tus clientes sobre tu negocio, productos y servicios..."
             />
@@ -209,7 +258,7 @@ export default function CreateBusinessPage() {
                 type="tel"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
-                className="border border-gray-300 pl-14 pr-4 py-3 w-full rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                className="border border-gray-300 pl-14 pr-4 py-3 w-full rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition"
                 placeholder="987654321"
                 pattern="[0-9]{9}"
               />
@@ -224,7 +273,7 @@ export default function CreateBusinessPage() {
             <button
               type="submit"
               disabled={uploading}
-              className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+              className="flex-1 bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
               {uploading ? (
                 <>
@@ -232,17 +281,27 @@ export default function CreateBusinessPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Creando...
+                  Guardando cambios...
                 </>
               ) : (
                 <>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Crear Negocio
+                  Guardar Cambios
                 </>
               )}
             </button>
+            
+            <Link
+              href="/dashboard"
+              className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition text-center flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Cancelar
+            </Link>
           </div>
         </form>
       </div>

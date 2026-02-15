@@ -24,3 +24,54 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* FORZAR que los inputs SIEMPRE se vean */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  -webkit-text-fill-color: #000000 !important;
+  opacity: 1 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important;
+  opacity: 1 !important;
+}
+
+/* FORZAR que los LABELS siempre sean NEGROS en formularios */
+form label,
+form h1,
+form h2,
+form h3,
+form p {
+  color: #000000 !important;
+}
+
+/* En dark mode */
+@media (prefers-color-scheme: dark) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    color: #000000 !important;
+    background-color: #ffffff !important;
+    -webkit-text-fill-color: #000000 !important;
+  }
+  
+  /* Labels NEGROS incluso en dark mode */
+  form label,
+  form h1,
+  form h2,
+  form h3,
+  form p {
+    color: #000000 !important;
+  }
+}
